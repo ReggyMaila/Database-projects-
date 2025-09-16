@@ -1,0 +1,231 @@
+
+
+Question 1: Complete Database Management System
+Step 1: Define Entities
+
+For a basic e-commerce store, we can have:
+
+Users – customers of the store.
+
+Products – items available for sale.
+
+Orders – purchases made by users.
+
+OrderItems – individual products in an order.
+
+Categories – product classification.
+
+
+Step 2: Define Relationships
+
+Users → Orders = One-to-Many (a user can place many orders)
+
+Orders → OrderItems = One-to-Many (an order can have multiple items)
+
+Products → OrderItems = One-to-Many (each product can appear in multiple order items)
+
+Products → Categories = Many-to-One (many products belong to a category)
+
+
+Step 3: SQL Schema
+
+-- ecommerce.sql
+CREATE DATABASE IF NOT EXISTS EcommerceDB;
+USE EcommerceDB;
+
+-- Users Table
+CREATE TABLE Users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Categories Table
+CREATE TABLE Categories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- Products Table
+CREATE TABLE Products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    stock INT DEFAULT 0,
+    category_id INT,
+    FOREIGN KEY (category_id) REFERENCES Categories(category_id)
+);
+
+-- Orders Table
+CREATE TABLE Orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'Pending',
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+);
+
+-- OrderItems Table
+CREATE TABLE OrderItems (
+    order_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id),
+    FOREIGN KEY (product_id) REFERENCES Products(product_id)
+);
+
+-- Sample Data for Testing
+INSERT INTO Users (full_name, email, password) VALUES 
+('Alice Johnson', 'alice@example.com', 'password123'),
+('Bob Smith', 'bob@example.com', 'password456');
+
+INSERT INTO Categories (name, description) VALUES 
+('Electronics', 'Phones, Computers, Gadgets'),
+('Clothing', 'Men and Women Clothing');
+
+INSERT INTO Products (name, description, price, stock, category_id) VALUES 
+('iPhone 14', 'Latest Apple iPhone', 1200.00, 10, 1),
+('T-Shirt', 'Cotton T-Shirt', 20.00, 50, 2);
+
+
+
+Question 2: CRUD Application
+
+I suggest Node.js (Express) for simplicity.
+
+Step 1: Initialize Project
+
+mkdir ecommerce-crud
+cd ecommerce-crud
+npm init -y
+npm install express mysql2 body-parser
+
+
+Step 2: Setup Database Connection
+
+db.js
+
+const mysql = require('mysql2');
+
+const db = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: 'your_password',
+  database: 'EcommerceDB'
+});
+
+db.connect((err) => {
+  if (err) throw err;
+  console.log('Connected to MySQL Database');
+});
+
+module.exports = db;
+
+
+Step 3: Express Server & CRUD for Users and Products
+
+server.js
+
+const express = require('express');
+const bodyParser = require('body-parser');
+const db = require('./db');
+
+const app = express();
+app.use(bodyParser.json());
+
+const PORT = 3000;
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+/* --- USERS CRUD --- */
+app.post('/users', (req, res) => {
+  const { full_name, email, password } = req.body;
+  db.query(
+    'INSERT INTO Users (full_name, email, password) VALUES (?, ?, ?)',
+    [full_name, email, password],
+    (err, result) => {
+      if (err) return res.status(500).send(err);
+      res.send({ user_id: result.insertId, full_name, email });
+    }
+  );
+});
+
+app.get('/users', (req, res) => {
+  db.query('SELECT * FROM Users', (err, results) => {
+    if (err) return res.status(500).send(err);
+    res.send(results);
+  });
+});
+
+app.put('/users/:id', (req, res) => {
+  const { id } = req.params;
+  const { full_name, email } = req.body;
+  db.query(
+    'UPDATE Users SET full_name=?, email=? WHERE user_id=?',
+    [full_name, email, id],
+    (err, result) => {
+      if (err) return res.status(500).send(err);
+      res.send({ message: 'User updated successfully' });
+    }
+  );
+});
+
+app.delete('/users/:id', (req, res) => {
+  const { id } = req.params;
+  db.query('DELETE FROM Users WHERE user_id=?', [id], (err, result) => {
+    if (err) return res.status(500).send(err);
+    res.send({ message: 'User deleted successfully' });
+  });
+});
+
+/* --- PRODUCTS CRUD --- */
+app.post('/products', (req, res) => {
+  const { name, description, price, stock, category_id } = req.body;
+  db.query(
+    'INSERT INTO Products (name, description, price, stock, category_id) VALUES (?, ?, ?, ?, ?)',
+    [name, description, price, stock, category_id],
+    (err, result) => {
+      if (err) return res.status(500).send(err);
+      res.send({ product_id: result.insertId, name });
+    }
+  );
+});
+
+app.get('/products', (req, res) => {
+  db.query('SELECT * FROM Products', (err, results) => {
+    if (err) return res.status(500).send(err);
+    res.send(results);
+  });
+});
+
+app.put('/products/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, price, stock } = req.body;
+  db.query(
+    'UPDATE Products SET name=?, price=?, stock=? WHERE product_id=?',
+    [name, price, stock, id],
+    (err, result) => {
+      if (err) return res.status(500).send(err);
+      res.send({ message: 'Product updated successfully' });
+    }
+  );
+});
+
+app.delete('/products/:id', (req, res) => {
+  const { id } = req.params;
+  db.query('DELETE FROM Products WHERE product_id=?', [id], (err, result) => {
+    if (err) return res.status(500).send(err);
+    res.send({ message: 'Product deleted successfully' });
+  });
+});
+
+
+
+
